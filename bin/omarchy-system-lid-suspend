@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# omarchy:summary=Suspend after the lid has stayed closed, not on the falling edge
+# omarchy:group=system
+# omarchy:hidden=true
+
+# logind used to suspend on the same lid event Hyprland uses to lock. A quick
+# close/open then entered S3 with the lid already open, and the compositor
+# never saw switch:off because user.slice was frozen.
+#
+# Locking still happens immediately in omarchy-system-lid-close. This helper
+# waits a couple of seconds, then suspends only if the lid is still shut and
+# the machine is not in clamshell mode.
+
+delay=${OMARCHY_LID_SUSPEND_DELAY:-3}
+pidfile="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/omarchy-lid-suspend.pid"
+
+if [[ ! $delay =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  delay=3
+fi
+
+if [[ -f $pidfile ]]; then
+  old=$(<"$pidfile")
+  if [[ $old =~ ^[0-9]+$ ]] && kill -0 "$old" 2>/dev/null; then
+    kill "$old" 2>/dev/null || true
+  fi
+  rm -f "$pidfile"
+fi
+
+if omarchy-toggle-enabled suspend-off; then
+  exit 0
+fi
+
+if ! omarchy-hw-laptop-closed; then
+  exit 0
+fi
+
+if omarchy-hw-external-monitors; then
+  exit 0
+fi
+
+(
+  echo "$BASHPID" > "$pidfile"
+  trap 'rm -f "$pidfile"' EXIT
+  sleep "$delay"
+  omarchy-toggle-enabled suspend-off && exit 0
+  omarchy-hw-laptop-closed || exit 0
+  omarchy-hw-external-monitors && exit 0
+  systemctl suspend
+) &

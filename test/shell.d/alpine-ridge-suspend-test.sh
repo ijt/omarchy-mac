@@ -11,6 +11,8 @@ migration="$ROOT/migrations/1789604768.sh"
 
 grep -F 'MacBookPro13,[123]|MacBookPro14,[123]' "$fix" >/dev/null
 grep -F 'pcie_port_pm=off' "$fix" >/dev/null
+grep -F '/etc/omarchy/lid-suspend-delay' "$fix" >/dev/null
+grep -F '20' "$fix" >/dev/null
 grep -F '8086:15d2' "$fix" >/dev/null
 grep -F '8086:15d4' "$fix" >/dev/null
 ! grep -E '^[^#]*pm_async=off' "$fix" >/dev/null ||

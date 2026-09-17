@@ -15,7 +15,14 @@ udev_rules=/etc/udev/rules.d/99-omarchy-alpine-ridge-wakeup.rules
 limine_conf=/etc/limine-entry-tool.d/alpine-ridge-suspend.conf
 service=/etc/systemd/system/omarchy-alpine-ridge-wakeup.service
 
-sudo mkdir -p /etc/udev/rules.d /etc/limine-entry-tool.d /etc/systemd/system
+sudo mkdir -p /etc/udev/rules.d /etc/limine-entry-tool.d /etc/systemd/system /etc/omarchy
+
+# S3 resume on these parts is ~7s, so lid-close waits 20s (see
+# omarchy-system-lid-suspend) instead of the 3s default. Leave an admin-set
+# value alone.
+if [[ ! -f /etc/omarchy/lid-suspend-delay ]]; then
+  printf '20\n' | sudo tee /etc/omarchy/lid-suspend-delay >/dev/null
+fi
 
 sudo tee "$udev_rules" >/dev/null <<'EOF'
 # Alpine Ridge NHI (8086:15d2) and xHCI (8086:15d4) must not wake S3.

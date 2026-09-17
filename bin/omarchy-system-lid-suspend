@@ -11,8 +11,32 @@
 # Locking still happens immediately in omarchy-system-lid-close. This helper
 # waits a couple of seconds, then suspends only if the lid is still shut and
 # the machine is not in clamshell mode.
+#
+# Most laptops use 3s. 2016–2017 MacBook Pros (Alpine Ridge) take ~7s to leave
+# S3, so a short close would still dump the user into that wait — they get 20s
+# so a glance-close only locks. An admin can set /etc/omarchy/lid-suspend-delay
+# (one number, seconds) for any other slow-resume machine.
 
-delay=${OMARCHY_LID_SUSPEND_DELAY:-3}
+delay=3
+product_name=${OMARCHY_DMI_PRODUCT_NAME:-/sys/class/dmi/id/product_name}
+if [[ -r $product_name ]]; then
+  model=$(<"$product_name")
+  if [[ $model =~ MacBookPro13,[123]|MacBookPro14,[123] ]]; then
+    delay=20
+  fi
+fi
+delay_file=${OMARCHY_LID_SUSPEND_DELAY_FILE:-/etc/omarchy/lid-suspend-delay}
+if [[ -r $delay_file ]]; then
+  file_delay=$(<"$delay_file")
+  file_delay=${file_delay%%$'\n'*}
+  if [[ $file_delay =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    delay=$file_delay
+  fi
+fi
+if [[ -n ${OMARCHY_LID_SUSPEND_DELAY:-} ]]; then
+  delay=$OMARCHY_LID_SUSPEND_DELAY
+fi
+
 pidfile="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/omarchy-lid-suspend.pid"
 
 if [[ ! $delay =~ ^[0-9]+([.][0-9]+)?$ ]]; then

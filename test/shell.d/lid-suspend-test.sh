@@ -16,6 +16,10 @@ pass "logind ignores lid close so Hyprland can debounce"
 grep -F 'omarchy-system-lid-suspend' "$ROOT/bin/omarchy-system-lid-close" >/dev/null
 pass "lid close starts a debounced suspend after locking"
 
+grep -F 'MacBookPro13,[123]|MacBookPro14,[123]' "$lid_suspend" >/dev/null
+grep -F 'delay=20' "$lid_suspend" >/dev/null
+pass "Alpine Ridge MacBook Pros wait 20s before S3"
+
 grep -F 'omarchy-system-lid-open' "$hook" >/dev/null
 grep -F 'sleep 1' "$hook" >/dev/null
 pass "sleep hook wakes the session after thaw"
@@ -85,3 +89,20 @@ mapfile -t calls <"$call_log" || true
 [[ ${#calls[@]} -eq 0 ]] ||
   fail "opening the lid cancels a pending suspend" "calls: ${calls[*]}"
 pass "opening the lid cancels a pending suspend"
+
+: >"$call_log"
+setup 0 1
+dmi="$tmpdir/dmi"
+delay_file="$tmpdir/delay"
+printf 'MacBookPro14,2\n' >"$dmi"
+printf '0.2\n' >"$delay_file"
+XDG_RUNTIME_DIR="$runtime" \
+  OMARCHY_DMI_PRODUCT_NAME="$dmi" \
+  OMARCHY_LID_SUSPEND_DELAY_FILE="$delay_file" \
+  PATH="$mock_bin:$PATH" \
+  "$lid_suspend"
+sleep 0.5
+mapfile -t calls <"$call_log"
+[[ ${calls[0]} == "systemctl suspend" ]] ||
+  fail "a machine delay file overrides the Alpine Ridge default" "calls: ${calls[*]}"
+pass "a machine delay file overrides the Alpine Ridge default"
